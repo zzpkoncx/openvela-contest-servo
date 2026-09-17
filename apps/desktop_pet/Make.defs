@@ -1,0 +1,7 @@
+# Make.defs for desktop_pet
+# 路径：apps/desktop_pet/Make.defs
+# 作用：告诉 openvela build 系统这个应用存在
+
+ifneq ($(CONFIG_APP_DESKTOP_PET),)
+CONFIGURED_APPS += $(APPDIR)/external/desktop_pet
+endif

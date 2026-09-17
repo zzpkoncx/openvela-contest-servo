@@ -1,0 +1,113 @@
+# 在官方 esp32s3-eye defconfig 基础上追加的配置（servo 版，GPIO42 关屏）
+#
+# ⚠️ 重要：本文件与 board/t-display-s3/defconfig 完全对齐（GPIO42 关屏版）。
+#    用户指定舵机插"42 端口"；GPIO42 = LCD 数据线 D3（PCB 硬布线），
+#    故舵机占 42 时必须关屏（CONFIG_LCD=n / FACE=n），把 GPIO42 让给舵机 PWM。
+#
+# 用法（二选一）：
+#   A. 直接挂到 esp32s3-eye 母本（最可靠，推荐）：
+#        cat defconfig.addition >> <eye板>/configs/esp32s3-eye/defconfig
+#      esp32s3-eye 与 T-Display-S3 同为 ESP32-S3R8，本配置已关 LCD，
+#      仅用芯片级 LEDC 外设，烧到 T-Display-S3 真机即可驱动 GPIO42 舵机。
+#   B. 自建命名板 t-display-s3（见 apply_and_build.sh）：
+#      脚本会把 eye 整目录复制为 t-display-s3 再覆盖 board.c/board.h/defconfig。
+
+# ============== AI Agent 启用 ==============
+CONFIG_AI_AGENT=y
+CONFIG_AI_AGENT_AUDIO=y
+# INMP441 是单路 I2S 麦，不要套用 eye 板 6 路 DMIC 的 6x 增益（会削波、唤醒率暴跌）
+CONFIG_AI_AGENT_AUDIO_CAPTURE_GAIN=1
+CONFIG_AI_AGENT_HTTP=y
+CONFIG_AI_AGENT_WEBSOCKET=y
+CONFIG_AI_AGENT_CRON=y
+CONFIG_AI_AGENT_LLM_VOLC=y
+CONFIG_AI_AGENT_LLM_KIMI=y
+CONFIG_AI_AGENT_LLM_QWEN=y
+CONFIG_AI_AGENT_LLM_DEEPSEEK=y
+CONFIG_AI_AGENT_LLM_GLM=y
+CONFIG_AI_AGENT_TTS_VOLC=y
+CONFIG_AI_AGENT_ASR_VOLC=y
+
+# ⚠️ Shell 安全策略：默认 Allowlist 模式会拦截 `servo` 等自定义命令！
+#    必须改 Full 模式（官方 Kconfig 符号，见 examples/ai_agent_vela/Kconfig），
+#    否则语音经 run_shell 调用 `servo` 会被拒绝、舵机永远不被语音触发。
+CONFIG_EXAMPLES_AI_AGENT_VELA=y
+CONFIG_EXAMPLES_AI_AGENT_VELA_SHELL_FULL=y
+
+# ============== 桌面小跟班应用 ==============
+CONFIG_APP_DESKTOP_PET=y
+# ⚠️ FACE 关闭：舵机占 GPIO42 = LCD D3，屏幕已关，face 模块依赖 LCD 随之关闭。
+#    保留屏幕时改回 =y（并把下方 LCD 段恢复为 =y）。
+CONFIG_APP_DESKTOP_PET_FACE=n
+CONFIG_APP_DESKTOP_PET_SERVO=y
+CONFIG_APP_DESKTOP_PET_VOICE_BRIDGE=y
+CONFIG_APP_DESKTOP_PET_LOGLEVEL=6
+
+CONFIG_APP_DESKTOP_PET_FACE_GPIO_DC=7
+# ⚠️ 舵机默认 GPIO42（用户指定"42 端口"；GPIO42=LCD D3，已关屏让出）。
+#    GPIO24 模组未引出不可用；想保留屏幕改 21 并恢复 CONFIG_LCD=y。
+CONFIG_APP_DESKTOP_PET_SERVO_GPIO=42
+# 舵机默认只听指令才动：开机/每日简报不自动摆头（=n）。需主动场景演示时改 y。
+CONFIG_APP_DESKTOP_PET_SERVO_AUTOGREET=n
+CONFIG_APP_DESKTOP_PET_FACE_DEFAULT=0
+CONFIG_APP_DESKTOP_PET_SERVO_DEFAULT_ANGLE=135
+
+# ============== LCD 驱动（ST7789V 8080 并口）==============
+# ⚠️ 关屏：GPIO42 = LCD 数据线 D3（PCB 硬布线），舵机占 42 必须关屏，
+#    否则 PWM 灌进屏幕数据线 → 花屏。保留屏幕时把下面两行改回 =y，
+#    并把 ST7789 段恢复（见板级 defconfig 注释里的完整段）。
+# CONFIG_LCD is not set
+CONFIG_LCD=n
+CONFIG_APP_DESKTOP_PET_FACE=n
+
+# ============== LEDC PWM（舵机）==============
+CONFIG_PWM=y
+CONFIG_PWM_MULTICHAN=y
+CONFIG_PWM_NCHANNELS=8
+CONFIG_ESP32S3_LEDC=y
+CONFIG_ESP32S3_LEDC_TIM0=y
+CONFIG_ESP32S3_LEDC_TIM0_CHANNELS=1
+# ⚠️ 舵机 LEDC 通道0 引脚：GPIO42（=LCD D3，已关屏让出）。
+#    改引脚只动这一行（与 t-display-s3/defconfig 保持一致）。
+CONFIG_ESP32S3_LEDC_CHANNEL0_PIN=42
+
+# ============== I2S（麦克风 INMP441）==============
+CONFIG_I2S=y
+CONFIG_I2S_CHARDEV=y
+CONFIG_ESP32S3_I2S0=y
+
+# ============== WiFi & 网络 ==============
+CONFIG_ESP32S3_WIFI=y
+CONFIG_NET=y
+CONFIG_NET_TCP=y
+CONFIG_NET_UDP=y
+CONFIG_NET_SOCKOPTS=y
+CONFIG_NSOCKET_DESCRIPTORS=8
+CONFIG_NETDB_DNSCLIENT=y
+CONFIG_NETUTILS_CJSON=y
+CONFIG_NETUTILS_DHCPC=y
+
+# ============== 文件系统 ==============
+CONFIG_FS_FAT=y
+CONFIG_FS_LITTLEFS=y
+CONFIG_FS_NFS=y
+
+# ============== 调试 ==============
+CONFIG_DEBUG=y
+CONFIG_DEBUG_INFO=y
+CONFIG_DEBUG_SYMBOLS=y
+CONFIG_SYSLOG=y
+CONFIG_SYSLOG_TIMESTAMP=y
+CONFIG_STDIO_BUFFER_SIZE=256
+CONFIG_SYSTEM_LOGGING=y
+
+# ============== Shell ==============
+CONFIG_NSH=y
+CONFIG_NSH_ARCHINIT=y
+CONFIG_NSH_FILEIOSIZE=512
+CONFIG_NSH_PROMPT_STRING="vela> "
+
+# ============== 内存优化（PSRAM 8MB）==============
+CONFIG_ESP32S3_PSRAM=y
+CONFIG_ESP32S3_PSRAM_SIZE=8388608
+CONFIG_HEAP_MM_HEAP=y

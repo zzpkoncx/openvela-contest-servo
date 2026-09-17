@@ -1,0 +1,8 @@
+[Desktop Entry]
+Version=1.0
+Name=一键重编舵机固件
+Comment=双击即重编 openvela 舵机/语音固件（自动找代码位置，无需打字）
+Exec=x-terminal-emulator -- bash -c 'D=""; for d in /mnt/shared/openvela_contest /mnt/hgfs/openvela_contest /media/*/openvela_contest "$HOME/openvela_contest"; do [ -d "$d/apps/desktop_pet" ] && { D="$d"; break; }; done; if [ -n "$D" ]; then cd "$D" && bash ./tools/rebuild_openvela.sh; else echo "找不到 openvela_contest 代码目录。"; echo "请在 VirtualBox 里把 Windows 的 contest 文件夹共享给 Ubuntu，再双击本文件。"; fi; echo; echo "===== 编完了就关掉这个窗口，回 Windows 告诉 WorkBuddy 『烧录』====="; exec bash'
+Terminal=true
+Type=Application
+Categories=Development;

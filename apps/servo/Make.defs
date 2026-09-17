@@ -1,0 +1,7 @@
+# Make.defs for servo
+# 路径：apps/servo/Make.defs
+# 作用：告诉 openvela build 系统这个应用存在（独立 NSH 命令 `servo`）
+
+ifneq ($(CONFIG_APP_DESKTOP_PET_SERVO),)
+CONFIGURED_APPS += $(APPDIR)/external/servo
+endif

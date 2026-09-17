@@ -1,0 +1,129 @@
+#
+# Kconfig for desktop_pet application
+# 路径：apps/desktop_pet/Kconfig
+#
+
+config APP_DESKTOP_PET
+	tristate "Desktop Pet (Face + Servo + AI Agent Bridge)"
+	default n
+	depends on !DISABLE_DEPRECATED
+	help
+		桌面小跟班 - 桌面陪伴机器人 openvela 应用
+		提供：
+		  - LCD 表情显示（ST7789V 8080 并口）
+		  - 270° 舵机控制（LEDC PWM）
+		  - ai_agent Skill 桥接
+		  - 主动场景（每日简报 + 表情切换）
+
+if APP_DESKTOP_PET
+
+config APP_DESKTOP_PET_FACE
+	bool "Face expression display"
+	default y
+	depends on APP_DESKTOP_PET
+	help
+		启用表情显示（需要 SPI/8080 接口的 LCD 驱动）
+
+config APP_DESKTOP_PET_SERVO
+	bool "Servo motor control"
+	default y
+	depends on APP_DESKTOP_PET
+	help
+		启用舵机控制（需要 LEDC PWM）
+
+config APP_DESKTOP_PET_VOICE_BRIDGE
+	bool "AI Agent voice bridge"
+	default y
+	depends on APP_DESKTOP_PET
+	depends on AI_AGENT
+	help
+		启用 ai_agent 消息总线桥接（接收 Skill 调用）
+
+config APP_DESKTOP_PET_LOGLEVEL
+	int "Log level (0-7)"
+	default 3
+	range 0 7
+	help
+		0=EMERG, 1=ALERT, 2=CRIT, 3=ERR, 4=WARN, 5=NOTICE, 6=INFO, 7=DEBUG
+
+config APP_DESKTOP_PET_FACE_GPIO_DC
+	int "LCD DC GPIO pin (reserved)"
+	default 7
+	help
+		LCD Data/Command 选择引脚（T-Display-S3 官方: GPIO7）。
+		注意: face_lcd.c 实际通过 open("/dev/lcd0")+write() 显示，
+		LCD 引脚由 board 层 CONFIG_LCD_ST7789_*_GPIO 决定，本项仅供文档/校验。
+
+config APP_DESKTOP_PET_SERVO_GPIO
+	int "Servo PWM GPIO pin"
+	default 21
+	depends on APP_DESKTOP_PET_SERVO
+	help
+		舵机 GPIO 引脚（单一来源在 board.h 的 BOARD_SERVO_GPIO）。
+		**当前默认 42**：用户指定舵机插"42 端口"，且 GPIO42 = LCD 数据线 D3（PCB 硬布线），
+		故本配置关闭 LCD（CONFIG_LCD=n，face 模块随之关闭），把 GPIO42 让给舵机 PWM。
+		若想保留屏幕：把本项改回 21（或 GPIO10），并在 defconfig 恢复
+		CONFIG_LCD=y 与 ST7789 段、CONFIG_ESP32S3_LEDC_CHANNEL0_PIN=21。
+		default 21 可保留（defconfig 已显式覆盖为 42）。GPIO24 模组未引出，不可用。
+		本项只作文档/校验；真正的 LEDC 通道↔引脚绑定由
+		CONFIG_ESP32S3_LEDC_CHANNEL0_PIN 决定（见 board/t-display-s3/defconfig）。
+
+config APP_DESKTOP_PET_SERVO_PWM_DEV
+	string "PWM character device"
+	default "/dev/pwm0"
+	depends on APP_DESKTOP_PET_SERVO
+	help
+		LEDC 通道 0 注册出的 PWM 字符设备。board.c 的
+		t_display_s3_servo_init() 注册为 /dev/pwm0。上板 `ls /dev` 确认后调整。
+
+config APP_DESKTOP_PET_SERVO_PWM_CH
+	int "PWM channel index"
+	default 0
+	range 0 7
+	depends on APP_DESKTOP_PET_SERVO
+	help
+		舵机使用的 LEDC 通道索引（0-based）。注意驱动里会 +1 填进
+		pwm_info_s.channels[].channel（NuttX 要求 1-based）。
+
+config APP_DESKTOP_PET_SERVO_MIN_US
+	int "Pulse width at 0 degree (us)"
+	default 500
+	depends on APP_DESKTOP_PET_SERVO
+	help
+		0° 对应脉宽。标准 270° 舵机约 500us。
+
+config APP_DESKTOP_PET_SERVO_MAX_US
+	int "Pulse width at 270 degree (us)"
+	default 2500
+	depends on APP_DESKTOP_PET_SERVO
+	help
+		270° 对应脉宽。标准 270° 舵机约 2500us。
+
+config APP_DESKTOP_PET_SERVO_RANGE_DEG
+	int "Servo angle range (degree)"
+	default 270
+	depends on APP_DESKTOP_PET_SERVO
+	help
+		舵机总角度范围。270° 舵机填 270。
+
+config APP_DESKTOP_PET_FACE_DEFAULT
+	int "Default face ID (0-8)"
+	default 0
+	range 0 8
+
+config APP_DESKTOP_PET_SERVO_DEFAULT_ANGLE
+	int "Default servo angle (0-270)"
+	default 135
+	range 0 270
+
+config APP_DESKTOP_PET_SERVO_AUTOGREET
+	bool "Auto greet on boot / daily briefing (servo moves WITHOUT command)"
+	default n
+	depends on APP_DESKTOP_PET_SERVO
+	help
+		默认 n：舵机只在收到显式指令时才动（语音 wake + servo 命令 / 串口
+		servo set... / 手动 servo greet），开机和每日简报不再自动摆头。
+		设为 y 才恢复"开机主动打招呼 + 每日简报主动摆头"（大赛「主动+执行」演示用）。
+		servo_greet() 始终可通过 `servo greet` 命令手动触发，不依赖此项。
+
+endif # APP_DESKTOP_PET
