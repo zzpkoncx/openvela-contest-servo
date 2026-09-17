@@ -15,7 +15,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-22.04
-    timeout-minutes: 300
+    timeout-minutes: 360
     steps:
       - name: Checkout contest code
         uses: actions/checkout@v4
@@ -39,9 +39,11 @@ jobs:
           sudo systemctl stop systemd-oomd systemd-oomd.socket || true
 
       - name: repo init + sync openvela (dev-ai-contest-2026)
-        working-directory: ${{ github.workspace }}/../ov
+        # 注意: 必须先 mkdir 再 cd, 不能把 working-directory 设成尚不存在的 ../ov
+        #       (GitHub 会在启动 shell 前解析 working-directory, 目录不存在会直接报错)。
         run: |
           mkdir -p "${{ github.workspace }}/../ov"
+          cd "${{ github.workspace }}/../ov"
           repo init --partial-clone \
             -u https://github.com/open-vela/manifests.git \
             -b dev-ai-contest-2026 -m openvela.xml --git-lfs \
@@ -49,8 +51,9 @@ jobs:
           repo sync -c -j8 2>&1 | tail -n 200
 
       - name: Apply contest code + build (esp32s3-eye nsh + servo GPIO42)
-        working-directory: ${{ github.workspace }}/../ov
+        # 同样先 cd 进已存在的 ov 目录, 再执行脚本
         run: |
+          cd "${{ github.workspace }}/../ov"
           bash "${{ github.workspace }}/tools/apply_and_build.sh" "${{ github.workspace }}" 2>&1 | tee /tmp/build.log
 
       - name: Package firmware
@@ -70,7 +73,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: always()
         with:
-          tag: latest
+          tag_name: latest
           name: openvela servo firmware (latest)
           files: |
             /tmp/fw.zip

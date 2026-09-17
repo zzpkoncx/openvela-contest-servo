@@ -35,7 +35,7 @@
 #   cmake_out/vela_esp32s3-eye/), 含 bootloader/partition/nuttx 或 merged bin。
 #   把该目录传回 Windows, 用 flash_servo_win.ps1 -Go 烧录到 COM7。
 # ============================================================
-set -e
+set -eo pipefail
 CONTEST="${1:-$(cd "$(dirname "$0")/.." && pwd)}"
 ROOT="$(pwd)"
 echo "== openvela 源码树: $ROOT"
